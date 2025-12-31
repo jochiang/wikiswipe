@@ -1,12 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { generateEmbedding, preloadModel, isModelReady } from '../services/embeddings';
-import { getArticleLinks, preloadArticles, getRandomArticle } from '../services/wikipedia';
+import { getRandomArticle } from '../services/wikipedia';
 import { cosineSimilarity } from '../utils/similarity';
 
 const CONFIG = {
   PRELOAD_COUNT: 6, // Number of articles to preload
   PRELOAD_TRIGGER_REMAINING: 4, // Trigger preload when this many remain (earlier = smoother)
-  MIN_CANDIDATES: 4 // Minimum candidates for selection
+  CANDIDATE_POOL_SIZE: 12 // Fetch more randoms to have selection pool
 };
 
 /**
@@ -115,7 +115,7 @@ export function useRecommendationEngine() {
   }, []);
 
   /**
-   * Preload next batch of articles
+   * Preload next batch of articles (random articles, sorted by embedding similarity)
    */
   const preloadNext = useCallback(async (currentArticle, explorationRatio = 0.5) => {
     if (preloadingRef.current || !currentArticle) return;
@@ -123,41 +123,22 @@ export function useRecommendationEngine() {
     setIsPreloading(true);
 
     try {
-      // Get linked articles from current page
-      const linkedTitles = await getArticleLinks(currentArticle.title, 20);
-
-      // Filter out already viewed and shuffle to avoid alphabetical bias
-      const newTitles = linkedTitles
-        .filter(t => !viewedTitlesRef.current.has(t))
-        .sort(() => Math.random() - 0.5);
-
-      // Inject random articles based on exploration ratio
-      // High exploration = more random articles mixed in
-      const numRandomToAdd = Math.max(
-        CONFIG.MIN_CANDIDATES - newTitles.length, // At minimum, fill gaps
-        Math.floor(explorationRatio * 4) // Add more randoms when exploring
+      // Fetch random articles as candidates
+      const randomArticles = await Promise.all(
+        Array(CONFIG.CANDIDATE_POOL_SIZE)
+          .fill(null)
+          .map(() => getRandomArticle())
       );
 
-      if (numRandomToAdd > 0) {
-        const randomArticles = await Promise.all(
-          Array(numRandomToAdd)
-            .fill(null)
-            .map(() => getRandomArticle())
-        );
-        randomArticles.forEach(a => {
-          if (!viewedTitlesRef.current.has(a.title)) {
-            newTitles.push(a.title);
-          }
-        });
-      }
+      // Filter out already viewed
+      const candidates = randomArticles.filter(
+        a => !viewedTitlesRef.current.has(a.title)
+      );
 
-      // Fetch article summaries
-      const articles = await preloadArticles(newTitles.slice(0, 12));
-
-      // Generate embeddings for candidates (in parallel)
+      // Generate embeddings for all candidates (in parallel)
       if (isModelReady()) {
         await Promise.all(
-          articles.map(async (article) => {
+          candidates.map(async (article) => {
             article.embedding = await getArticleEmbedding(article);
           })
         );
@@ -167,8 +148,8 @@ export function useRecommendationEngine() {
       const currentEmbedding = currentArticle.embedding ||
         await getArticleEmbedding(currentArticle);
 
-      // Select best articles based on exploration/exploitation
-      const selected = selectNextArticles(articles, currentEmbedding, explorationRatio);
+      // Select articles based on similarity + exploration/exploitation ratio
+      const selected = selectNextArticles(candidates, currentEmbedding, explorationRatio);
 
       // Mark as viewed and add to queue
       selected.forEach(a => viewedTitlesRef.current.add(a.title));
