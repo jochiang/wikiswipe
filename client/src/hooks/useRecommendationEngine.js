@@ -126,8 +126,10 @@ export function useRecommendationEngine() {
       // Get linked articles from current page
       const linkedTitles = await getArticleLinks(currentArticle.title, 20);
 
-      // Filter out already viewed
-      const newTitles = linkedTitles.filter(t => !viewedTitlesRef.current.has(t));
+      // Filter out already viewed and shuffle to avoid alphabetical bias
+      const newTitles = linkedTitles
+        .filter(t => !viewedTitlesRef.current.has(t))
+        .sort(() => Math.random() - 0.5);
 
       if (newTitles.length < CONFIG.MIN_CANDIDATES) {
         // Not enough links, add some random articles
