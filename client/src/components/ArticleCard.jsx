@@ -15,7 +15,7 @@ export function ArticleCard({ article, isExpanded, onExpand, onSwipe }) {
   };
 
   const handleTouchMove = (e) => {
-    if (touchStart === null || isExpanded) return;
+    if (touchStart === null) return;
     const currentY = e.targetTouches[0].clientY;
     const offset = currentY - touchStart;
     setDragOffset(offset);
@@ -27,7 +27,7 @@ export function ArticleCard({ article, isExpanded, onExpand, onSwipe }) {
   const handleTouchEnd = () => {
     if (touchStart === null) return;
 
-    if (!isExpanded && Math.abs(dragOffset) > MIN_SWIPE_DISTANCE) {
+    if (Math.abs(dragOffset) > MIN_SWIPE_DISTANCE) {
       if (dragOffset < 0) {
         onSwipe('up');
       } else {
@@ -41,13 +41,12 @@ export function ArticleCard({ article, isExpanded, onExpand, onSwipe }) {
 
   // Mouse support for desktop
   const handleMouseDown = (e) => {
-    if (isExpanded) return;
     setTouchStart(e.clientY);
     isDraggingRef.current = false;
   };
 
   const handleMouseMove = (e) => {
-    if (touchStart === null || isExpanded) return;
+    if (touchStart === null) return;
     const offset = e.clientY - touchStart;
     setDragOffset(offset);
     if (Math.abs(offset) > 10) {
@@ -58,7 +57,7 @@ export function ArticleCard({ article, isExpanded, onExpand, onSwipe }) {
   const handleMouseUp = () => {
     if (touchStart === null) return;
 
-    if (!isExpanded && Math.abs(dragOffset) > MIN_SWIPE_DISTANCE) {
+    if (Math.abs(dragOffset) > MIN_SWIPE_DISTANCE) {
       if (dragOffset < 0) {
         onSwipe('up');
       } else {
@@ -130,7 +129,9 @@ export function ArticleCard({ article, isExpanded, onExpand, onSwipe }) {
       )}
 
       <div className="card-hint">
-        {isExpanded ? 'Tap to collapse' : (needsTruncation ? 'Tap to read more • Swipe for next' : 'Swipe for next')}
+        {isExpanded
+          ? 'Tap to collapse • Swipe for next'
+          : (needsTruncation ? 'Tap to read more • Swipe for next' : 'Swipe for next')}
       </div>
 
       <div className="swipe-indicator up">
