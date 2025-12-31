@@ -5,7 +5,7 @@ import { cosineSimilarity } from '../utils/similarity';
 
 const CONFIG = {
   PRELOAD_COUNT: 6, // Number of articles to preload
-  PRELOAD_TRIGGER_REMAINING: 2, // Trigger preload when this many remain
+  PRELOAD_TRIGGER_REMAINING: 4, // Trigger preload when this many remain (earlier = smoother)
   MIN_CANDIDATES: 4 // Minimum candidates for selection
 };
 
@@ -131,10 +131,16 @@ export function useRecommendationEngine() {
         .filter(t => !viewedTitlesRef.current.has(t))
         .sort(() => Math.random() - 0.5);
 
-      if (newTitles.length < CONFIG.MIN_CANDIDATES) {
-        // Not enough links, add some random articles
+      // Inject random articles based on exploration ratio
+      // High exploration = more random articles mixed in
+      const numRandomToAdd = Math.max(
+        CONFIG.MIN_CANDIDATES - newTitles.length, // At minimum, fill gaps
+        Math.floor(explorationRatio * 4) // Add more randoms when exploring
+      );
+
+      if (numRandomToAdd > 0) {
         const randomArticles = await Promise.all(
-          Array(CONFIG.MIN_CANDIDATES - newTitles.length)
+          Array(numRandomToAdd)
             .fill(null)
             .map(() => getRandomArticle())
         );
@@ -146,7 +152,7 @@ export function useRecommendationEngine() {
       }
 
       // Fetch article summaries
-      const articles = await preloadArticles(newTitles.slice(0, 10));
+      const articles = await preloadArticles(newTitles.slice(0, 12));
 
       // Generate embeddings for candidates (in parallel)
       if (isModelReady()) {

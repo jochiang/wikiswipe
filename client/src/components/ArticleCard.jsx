@@ -76,10 +76,13 @@ export function ArticleCard({ article, isExpanded, onExpand, onSwipe }) {
     }
   };
 
-  // Format content into paragraphs
-  const paragraphs = article.content
-    ? article.content.split(/\n\n+/).filter(p => p.trim())
-    : [];
+  // Truncate summary for collapsed view
+  const MAX_COLLAPSED_LENGTH = 150;
+  const fullText = article.summary || '';
+  const needsTruncation = fullText.length > MAX_COLLAPSED_LENGTH;
+  const truncatedText = needsTruncation
+    ? fullText.slice(0, MAX_COLLAPSED_LENGTH).trim() + '...'
+    : fullText;
 
   return (
     <div
@@ -108,29 +111,26 @@ export function ArticleCard({ article, isExpanded, onExpand, onSwipe }) {
 
       <h1 className="card-title">{article.title}</h1>
 
-      <p className="card-summary">{article.summary}</p>
+      <p className="card-summary">
+        {isExpanded ? fullText : truncatedText}
+      </p>
 
-      {isExpanded && paragraphs.length > 0 && (
+      {isExpanded && article.pageUrl && (
         <div className="card-content">
-          {paragraphs.map((para, i) => (
-            <p key={i}>{para}</p>
-          ))}
-          {article.pageUrl && (
-            <a
-              href={article.pageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="read-more-link"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Read full article on Wikipedia
-            </a>
-          )}
+          <a
+            href={article.pageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="read-more-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Read full article on Wikipedia →
+          </a>
         </div>
       )}
 
       <div className="card-hint">
-        {isExpanded ? 'Tap to collapse' : 'Tap to read more • Swipe for next'}
+        {isExpanded ? 'Tap to collapse' : (needsTruncation ? 'Tap to read more • Swipe for next' : 'Swipe for next')}
       </div>
 
       <div className="swipe-indicator up">
